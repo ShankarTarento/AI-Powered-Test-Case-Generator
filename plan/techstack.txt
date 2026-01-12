@@ -1,0 +1,264 @@
+# Complete Tech Stack - AI-Powered Test Case Generator
+
+## Core Layers
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Frontend** | React 18 + TypeScript + Vite | Modern, type-safe UI |
+| **Backend** | Python 3.11 + FastAPI | High-performance async API |
+| **AI Orchestration** | LiteLLM or LangChain | Multi-provider abstraction (AI-agnostic) |
+| **Vector DB** | Qdrant | Semantic search for RAG |
+| **Relational DB** | PostgreSQL 15+ | Primary data storage |
+| **Cache** | Redis 7 | Session, API cache, job queue |
+| **Analytics** | PostgreSQL (Phase 1) → ClickHouse (Phase 2) | Reporting & insights |
+| **Integration** | Jira REST API v3 + Webhooks | Real-time Jira sync |
+| **Infrastructure** | Docker + Kubernetes (EKS) | Container orchestration |
+| **Cloud** | AWS (preferred) or Azure | Cloud platform |
+
+---
+
+## AI Layer (Multi-Provider Architecture)
+
+### Orchestration Layer
+- **Primary:** LiteLLM (unified API for 100+ LLMs)
+- **Alternative:** LangChain (more features, heavier)
+- **Purpose:** Abstract LLM calls, allow user API key switching
+
+### Supported LLM Providers (User Choice)
+1. **OpenAI** (GPT-4 Turbo, GPT-4o, GPT-3.5)
+2. **Anthropic** (Claude 3.5 Sonnet, Claude 3 Opus)
+3. **Google** (Gemini 2.0 Flash, Gemini Pro)
+4. **Azure OpenAI** (Enterprise customers)
+5. **Open-Source** (Llama 3, Mixtral via Ollama/Together AI)
+6. **AWS Bedrock** (Multi-model via AWS)
+
+### Embeddings (for Vector Search)
+- OpenAI: text-embedding-ada-002 (1536 dims)
+- Google: text-embedding-004 (768 dims)
+- Cohere: embed-english-v3.0 (1024 dims)
+- Open-source: sentence-transformers (local)
+
+### User API Key Management
+- Encrypted storage in PostgreSQL (AES-256)
+- User can add/update keys in settings
+- Support multiple providers per user
+- Fall back to system API key if user key fails
+
+---
+
+## Detailed Technology Stack
+
+### Frontend Stack
+- **Framework:** React 18 + TypeScript 5
+- **Build Tool:** Vite 5 (fast HMR)
+- **State Management:** Zustand (lightweight) or Redux Toolkit
+- **Data Fetching:** React Query (TanStack Query v5)
+- **UI Library:** Tailwind CSS + shadcn/ui components
+- **Routing:** React Router v6
+- **Forms:** React Hook Form + Zod validation
+- **Charts:** Recharts or Chart.js
+- **Testing:** Jest + React Testing Library + Playwright
+
+### Backend Stack
+- **Framework:** FastAPI 0.110+
+- **ORM:** SQLAlchemy 2.0 (async support)
+- **Migrations:** Alembic
+- **Validation:** Pydantic V2
+- **Authentication:** python-jose (JWT) + authlib (OAuth 2.0)
+- **Background Jobs:** Celery 5+ with Redis backend
+- **HTTP Client:** httpx (async Jira API calls)
+- **Testing:** pytest + pytest-asyncio + pytest-cov
+
+### AI & RAG Stack
+- **Orchestrator:** LiteLLM 1.0+ (multi-provider unified API)
+  - Automatic retries & fallbacks
+  - Token usage tracking
+  - Cost estimation per provider
+  - Streaming support
+- **RAG Framework:** LangChain (optional for advanced pipelines)
+- **Vector DB:** Qdrant 1.7+ (self-hosted)
+  - HNSW algorithm for fast similarity search
+  - Handles millions of vectors
+  - Filtering by metadata (org, project)
+- **Prompt Management:** 
+  - Jinja2 templates for prompts
+  - Version control for prompt iterations
+  - A/B testing support
+
+### Database & Cache
+- **PostgreSQL 15+**
+  - Extensions: uuid-ossp, pg_trgm, pgcrypto
+  - Connection pooling: PgBouncer
+  - Replication: Multi-AZ for HA
+- **Qdrant Vector DB**
+  - Collections per organization
+  - Embedding dimensions: 1536 (OpenAI) or configurable
+- **Redis 7**
+  - Use cases: Cache, Celery broker, rate limiting
+  - Eviction: allkeys-lru
+  - Persistence: AOF for durability
+
+### Integration Layer
+- **Jira Cloud API v3**
+  - OAuth 2.0 authentication
+  - Webhooks for real-time updates
+  - SDK: jira-python library
+  - Rate limiting: 100-500 req/min (varies by plan)
+- **Future Integrations:**
+  - Azure DevOps API
+  - GitHub Issues API
+  - Linear API
+
+### Infrastructure
+- **Containerization:** Docker 24+ (multi-stage builds)
+- **Orchestration:** Kubernetes 1.28+ (AWS EKS)
+- **Service Mesh:** Istio (optional, for advanced routing)
+- **IaC:** Terraform or AWS CDK
+- **Package Manager:** Helm (K8s deployments)
+
+### AWS Services
+- **Compute:** EKS (Kubernetes) or ECS Fargate
+- **Database:** RDS PostgreSQL (Multi-AZ, automated backups)
+- **Cache:** ElastiCache Redis (cluster mode)
+- **Storage:** S3 (attachments, exports, backups)
+- **CDN:** CloudFront (frontend assets)
+- **Secrets:** AWS Secrets Manager (API keys, credentials)
+- **Networking:** VPC, ALB, Route 53
+- **Monitoring:** CloudWatch, X-Ray (APM)
+- **Security:** WAF, Shield, KMS (encryption)
+
+### Monitoring & Observability
+- **APM:** Datadog or AWS X-Ray
+- **Error Tracking:** Sentry
+- **Logging:** CloudWatch Logs or ELK Stack
+- **Metrics:** Prometheus + Grafana (K8s native)
+- **Uptime:** Pingdom or UptimeRobot
+- **Cost Tracking:** AWS Cost Explorer + custom dashboards
+
+### CI/CD Pipeline
+- **Version Control:** GitHub or GitLab
+- **CI/CD:** GitHub Actions or GitLab CI
+- **Stages:** Lint → Test → Build → Deploy
+- **Docker Registry:** AWS ECR or Docker Hub
+- **Deployment Strategy:** Blue-green or rolling updates
+- **Quality Gates:** 
+  - Code coverage >80%
+  - Security scan (Snyk)
+  - Linting (Black, ESLint)
+
+### Security
+- **Authentication:** OAuth 2.0 (Google, Azure AD, GitHub)
+- **Authorization:** JWT tokens (15-min access, 7-day refresh)
+- **API Keys:** Encrypted with AES-256-GCM
+- **Secrets Management:** AWS Secrets Manager or Vault
+- **HTTPS:** TLS 1.3 (Let's Encrypt auto-renew)
+- **WAF:** AWS WAF (OWASP Top 10 rules)
+- **SAST:** SonarQube or Snyk
+- **DAST:** OWASP ZAP (weekly scans)
+- **Dependency Scanning:** Dependabot + Snyk
+
+---
+
+## AI-Agnostic Architecture Design
+
+### User Settings Schema
+```json
+{
+  "user_id": "uuid",
+  "ai_provider": "openai",  // or "anthropic", "google", "azure"
+  "api_keys": {
+    "openai": "encrypted_key_1",
+    "anthropic": "encrypted_key_2",
+    "google": "encrypted_key_3"
+  },
+  "default_model": "gpt-4-turbo",
+  "fallback_model": "gpt-3.5-turbo",
+  "max_tokens": 2000,
+  "temperature": 0.7,
+  "use_system_key_if_empty": true
+}
+```
+
+### LiteLLM Benefits
+1. **Unified API** - Same code for all providers
+2. **Automatic Retries** - Handles rate limits & failures
+3. **Cost Tracking** - Per-request cost calculation
+4. **Load Balancing** - Distribute across multiple keys
+5. **Fallback Logic** - Auto-switch on provider failure
+6. **Streaming** - Real-time response generation
+7. **Caching** - Redis-based response cache
+
+### Example Implementation
+```python
+from litellm import completion
+
+async def generate_test_cases(story, user_settings):
+    response = await completion(
+        model=user_settings.default_model,
+        messages=[{"role": "user", "content": story}],
+        api_key=decrypt(user_settings.api_keys[user_settings.ai_provider]),
+        temperature=user_settings.temperature,
+        max_tokens=user_settings.max_tokens,
+        cache={"ttl": 3600}  # 1-hour cache
+    )
+    return response.choices[0].message.content
+```
+
+---
+
+## Phase-Based Technology Adoption
+
+### Phase 1: MVP (Months 1-6)
+- React + FastAPI + PostgreSQL + Redis
+- LiteLLM with OpenAI/Anthropic support
+- Qdrant for RAG
+- Basic Jira sync (REST API + polling)
+- Docker + ECS Fargate (simpler than K8s)
+- GitHub Actions CI/CD
+
+### Phase 2: Scale (Months 7-12)
+- Add Google Gemini + Azure OpenAI support
+- Jira webhooks for real-time sync
+- Migrate to Kubernetes (EKS) for auto-scaling
+- Add ClickHouse for analytics
+- Advanced monitoring (Datadog, Prometheus)
+
+### Phase 3: Enterprise (Months 13+)
+- On-premise deployment option
+- Custom LLM support (Llama, Mixtral)
+- Multi-region deployment
+- Advanced RBAC
+- SOC2 Type II certification
+- SLA guarantees (99.9% uptime)
+
+---
+
+## Cost Estimates
+
+### Development Environment (Monthly)
+- AWS: $500-800
+- OpenAI API (testing): $100-200
+- Tools (GitHub, Datadog): $100
+- **Total: ~$700-1100/month**
+
+### Production Environment (Monthly at 100 users)
+- AWS Infrastructure: $3,000-5,000
+- User-provided API keys: $0 (users pay)
+- Monitoring & tools: $500
+- **Total: ~$3,500-5,500/month**
+
+### Scalability
+- 500 users: $8K-12K/month
+- 1000 users: $15K-20K/month
+- (API costs offloaded to users)
+
+---
+
+## Key Advantages of This Architecture
+
+1. **Zero AI Cost** - Users bring their own API keys
+2. **Future-Proof** - Support any LLM provider easily
+3. **User Flexibility** - Choose based on cost/quality preference
+4. **No Vendor Lock-in** - Switch providers anytime
+5. **Compliance** - Enterprise users keep data with their provider
+6. **Competitive Edge** - Most competitors force one provider
