@@ -28,7 +28,9 @@ class TestCase(Base):
     __tablename__ = "test_cases"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    feature_id = Column(UUID(as_uuid=True), ForeignKey("features.id", ondelete="CASCADE"), nullable=False)
+    user_story_id = Column(UUID(as_uuid=True), ForeignKey("user_stories.id", ondelete="CASCADE"), nullable=False)
+    # Alias for backward compatibility
+    feature_id = None  # Removed, use user_story_id
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
     title = Column(String(255), nullable=False)
@@ -45,7 +47,8 @@ class TestCase(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     
     # Relationships
-    feature = relationship("Feature", back_populates="test_cases")
+    user_story = relationship("UserStory", back_populates="test_cases")
+    feature = property(lambda self: self.user_story)  # Alias for backward compatibility
     creator = relationship("User", foreign_keys=[created_by])
     
     def __repr__(self):

@@ -264,6 +264,13 @@ class ApiClient {
         return this.handleResponse<Feature>(response);
     }
 
+    async getUserStory(storyId: string): Promise<UserStory> {
+        const response = await fetch(`${this.baseUrl}/api/v1/stories/${storyId}`, {
+            headers: this.getAuthHeaders(),
+        });
+        return this.handleResponse<UserStory>(response);
+    }
+
     async updateFeature(featureId: string, data: Partial<FeatureCreateRequest>): Promise<Feature> {
         const response = await fetch(`${this.baseUrl}/api/v1/features/${featureId}`, {
             method: 'PUT',
@@ -281,8 +288,30 @@ class ApiClient {
         return this.handleResponse<TestCase[]>(response);
     }
 
+    async getJiraStatus(): Promise<{ is_connected: boolean; site_name: string | null }> {
+        const response = await fetch(`${this.baseUrl}/api/v1/jira/status`, {
+            headers: this.getAuthHeaders(),
+        });
+        return this.handleResponse(response);
+    }
+
+    async getJiraConnectUrl(): Promise<{ url: string }> {
+        const response = await fetch(`${this.baseUrl}/api/v1/jira/connect`, {
+            headers: this.getAuthHeaders(),
+        });
+        return this.handleResponse(response);
+    }
+
     async syncJiraFeatures(projectId: string): Promise<{ message: string; count: number }> {
         const response = await fetch(`${this.baseUrl}/api/v1/jira/sync/${projectId}`, {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+        });
+        return this.handleResponse(response);
+    }
+
+    async importByJiraKey(projectId: string, jiraKey: string): Promise<ImportResult> {
+        const response = await fetch(`${this.baseUrl}/api/v1/jira/import/${projectId}?jira_key=${encodeURIComponent(jiraKey)}`, {
             method: 'POST',
             headers: this.getAuthHeaders(),
         });
@@ -299,22 +328,39 @@ class ApiClient {
 }
 
 
-
-export interface Feature {
+export interface UserStory {
     id: string;
     name: string;
     description?: string;
+    epic_id?: string;
     jira_key?: string;
     jira_type: 'epic' | 'story' | 'bug' | 'task';
     jira_status?: string;
     created_at: string;
+    children?: UserStory[];
 }
+
+// Alias for backward compatibility
+export type Feature = UserStory;
 
 export interface FeatureCreateRequest {
     name: string;
     description?: string;
+    epic_id?: string;
     jira_key?: string;
     jira_type?: string;
+}
+
+export interface ImportResult {
+    message: string;
+    user_story: {
+        id: string;
+        name: string;
+        type: string;
+        jira_key: string;
+    };
+    children: string[];
+    imported_count: number;
 }
 
 export interface TestCaseStep {

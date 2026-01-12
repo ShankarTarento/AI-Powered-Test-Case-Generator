@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { apiClient } from '../services/api';
 import { colors } from '../theme';
 
 interface StatCardProps {
@@ -47,11 +49,12 @@ interface StepCardProps {
     title: string;
     description: string;
     isActive: boolean;
+    isCompleted?: boolean;
     buttonLabel?: string;
     onButtonClick?: () => void;
 }
 
-function StepCard({ step, title, description, isActive, buttonLabel, onButtonClick }: StepCardProps) {
+function StepCard({ step, title, description, isActive, isCompleted, buttonLabel, onButtonClick }: StepCardProps) {
     return (
         <div style={{
             display: 'flex',
@@ -59,29 +62,33 @@ function StepCard({ step, title, description, isActive, buttonLabel, onButtonCli
             gap: '16px',
             padding: '16px',
             borderRadius: '12px',
-            backgroundColor: colors.neutral[50],
-            border: `1px solid ${colors.neutral[200]}`,
+            backgroundColor: isCompleted ? '#DCFCE7' : colors.neutral[50],
+            border: `1px solid ${isCompleted ? colors.success.main : colors.neutral[200]}`,
             opacity: isActive ? 1 : 0.5
         }}>
             <div style={{
                 width: '32px',
                 height: '32px',
                 borderRadius: '50%',
-                backgroundColor: isActive ? colors.primary[100] : colors.neutral[200],
+                backgroundColor: isCompleted ? colors.success.main : (isActive ? colors.primary[100] : colors.neutral[200]),
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: isActive ? colors.primary[600] : colors.neutral[500],
+                color: isCompleted ? 'white' : (isActive ? colors.primary[600] : colors.neutral[500]),
                 fontWeight: 600,
                 fontSize: '14px'
             }}>
-                {step}
+                {isCompleted ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <path d="M5 13l4 4L19 7" />
+                    </svg>
+                ) : step}
             </div>
             <div style={{ flex: 1 }}>
                 <p style={{ fontWeight: 500, color: colors.text.primary, marginBottom: '2px' }}>{title}</p>
                 <p style={{ fontSize: '14px', color: colors.text.secondary, margin: 0 }}>{description}</p>
             </div>
-            {buttonLabel && isActive && (
+            {buttonLabel && isActive && !isCompleted && (
                 <button
                     onClick={onButtonClick}
                     style={{
@@ -98,6 +105,18 @@ function StepCard({ step, title, description, isActive, buttonLabel, onButtonCli
                     {buttonLabel}
                 </button>
             )}
+            {isCompleted && (
+                <span style={{
+                    padding: '4px 12px',
+                    borderRadius: '16px',
+                    backgroundColor: colors.success.main,
+                    color: 'white',
+                    fontSize: '12px',
+                    fontWeight: 500
+                }}>
+                    Connected
+                </span>
+            )}
         </div>
     );
 }
@@ -105,6 +124,33 @@ function StepCard({ step, title, description, isActive, buttonLabel, onButtonCli
 export default function Dashboard() {
     const { user, isAdmin } = useAuth();
     const navigate = useNavigate();
+    const [isJiraConnected, setIsJiraConnected] = useState(false);
+    const [jiraSiteName, setJiraSiteName] = useState<string | null>(null);
+
+    useEffect(() => {
+        const checkJiraStatus = async () => {
+            try {
+                const status = await apiClient.getJiraStatus();
+                setIsJiraConnected(status.is_connected);
+                setJiraSiteName(status.site_name);
+            } catch (err) {
+                console.error('Failed to check Jira status:', err);
+            }
+        };
+        checkJiraStatus();
+    }, []);
+
+    const handleConnectJira = async () => {
+        try {
+            const { url } = await apiClient.getJiraConnectUrl();
+            window.location.href = url;
+        } catch (err) {
+            alert('Failed to initiate Jira connection');
+        }
+    };
+
+    // Check if setup is complete (for admins: has projects or Jira connected)
+    const isSetupComplete = isJiraConnected;
 
     const stats = [
         {
@@ -143,40 +189,46 @@ export default function Dashboard() {
             title: 'Configure AI settings',
             description: 'Set up your preferred AI provider and API key for the organization',
             buttonLabel: 'Configure AI',
-            onButtonClick: () => navigate('/settings')
+            onButtonClick: () => navigate('/settings'),
+            isCompleted: false
         },
         {
             title: 'Create a project',
             description: 'Create projects and invite your QA team members',
             buttonLabel: 'Create Project',
-            onButtonClick: () => navigate('/projects')
+            onButtonClick: () => navigate('/projects'),
+            isCompleted: false
         },
         {
-            title: 'Connect Jira (Optional)',
-            description: 'Import user stories from Jira to generate test cases',
+            title: isJiraConnected ? 'Jira Connected' : 'Connect Jira (Optional)',
+            description: isJiraConnected ? 'Your Jira account is connected. You can now sync user stories.' : 'Import user stories from Jira to generate test cases',
             buttonLabel: 'Connect Jira',
-            onButtonClick: () => navigate('/settings')
+            onButtonClick: handleConnectJira,
+            isCompleted: isJiraConnected
         }
     ];
 
     const qaSteps = [
         {
-            title: 'Connect your Jira account',
-            description: 'Link your Jira account to import user stories',
+            title: isJiraConnected ? 'Jira Connected' : 'Connect your Jira account',
+            description: isJiraConnected ? 'Your Jira account is connected.' : 'Link your Jira account to import user stories',
             buttonLabel: 'Connect Jira',
-            onButtonClick: () => navigate('/settings')
+            onButtonClick: handleConnectJira,
+            isCompleted: isJiraConnected
         },
         {
             title: 'View your projects',
             description: 'Access the projects you have been assigned to',
             buttonLabel: 'View Projects',
-            onButtonClick: () => navigate('/projects')
+            onButtonClick: () => navigate('/projects'),
+            isCompleted: false
         },
         {
             title: 'Generate test cases',
             description: 'Open a project and use the Generate tab to create AI-powered test cases',
             buttonLabel: 'Go to Projects',
-            onButtonClick: () => navigate('/projects')
+            onButtonClick: () => navigate('/projects'),
+            isCompleted: false
         }
     ];
 
@@ -257,31 +309,160 @@ export default function Dashboard() {
                 ))}
             </div>
 
-            {/* Getting Started */}
-            <div style={{
-                backgroundColor: colors.background.paper,
-                borderRadius: '12px',
-                padding: '24px',
-                border: `1px solid ${colors.neutral[200]}`,
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
-            }}>
-                <h2 style={{ fontSize: '18px', fontWeight: 600, color: colors.text.primary, marginBottom: '20px' }}>
-                    Getting Started {!isAdmin && '- QA Workflow'}
-                </h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {steps.map((step, index) => (
-                        <StepCard
-                            key={index}
-                            step={index + 1}
-                            title={step.title}
-                            description={step.description}
-                            isActive={true}
-                            buttonLabel={step.buttonLabel}
-                            onButtonClick={step.onButtonClick}
-                        />
-                    ))}
+            {/* Quick Actions (when setup complete) or Getting Started (when not) */}
+            {isSetupComplete ? (
+                <div style={{
+                    backgroundColor: colors.background.paper,
+                    borderRadius: '12px',
+                    padding: '24px',
+                    border: `1px solid ${colors.neutral[200]}`,
+                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+                }}>
+                    <h2 style={{ fontSize: '18px', fontWeight: 600, color: colors.text.primary, marginBottom: '20px' }}>
+                        Quick Actions
+                    </h2>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                        {/* Create New Project - Admin Only */}
+                        {isAdmin && (
+                            <div
+                                onClick={() => navigate('/projects')}
+                                style={{
+                                    padding: '20px',
+                                    borderRadius: '12px',
+                                    backgroundColor: colors.primary[50],
+                                    border: `2px dashed ${colors.primary[300]}`,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '16px',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                <div style={{
+                                    width: '48px',
+                                    height: '48px',
+                                    borderRadius: '12px',
+                                    background: `linear-gradient(135deg, ${colors.primary[500]} 0%, ${colors.primary[700]} 100%)`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                        <path d="M12 5v14M5 12h14" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p style={{ fontWeight: 600, color: colors.text.primary, marginBottom: '4px' }}>Create New Project</p>
+                                    <p style={{ fontSize: '14px', color: colors.text.secondary, margin: 0 }}>Start a new testing project</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Connected Jira Account */}
+                        {isJiraConnected && (
+                            <div style={{
+                                padding: '20px',
+                                borderRadius: '12px',
+                                backgroundColor: '#DCFCE7',
+                                border: `1px solid ${colors.success.main}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '16px'
+                            }}>
+                                <div style={{
+                                    width: '48px',
+                                    height: '48px',
+                                    borderRadius: '12px',
+                                    backgroundColor: colors.success.main,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <p style={{ fontWeight: 600, color: colors.text.primary, marginBottom: '4px' }}>Jira Connected</p>
+                                    <p style={{ fontSize: '14px', color: colors.text.secondary, margin: 0 }}>
+                                        {jiraSiteName || 'Your Jira account'}
+                                    </p>
+                                </div>
+                                <span style={{
+                                    padding: '4px 12px',
+                                    borderRadius: '16px',
+                                    backgroundColor: colors.success.main,
+                                    color: 'white',
+                                    fontSize: '12px',
+                                    fontWeight: 500
+                                }}>
+                                    Active
+                                </span>
+                            </div>
+                        )}
+
+                        {/* View Projects */}
+                        <div
+                            onClick={() => navigate('/projects')}
+                            style={{
+                                padding: '20px',
+                                borderRadius: '12px',
+                                backgroundColor: colors.neutral[50],
+                                border: `1px solid ${colors.neutral[200]}`,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '16px'
+                            }}
+                        >
+                            <div style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '12px',
+                                backgroundColor: colors.secondary[100],
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={colors.secondary[600]} strokeWidth="2">
+                                    <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p style={{ fontWeight: 600, color: colors.text.primary, marginBottom: '4px' }}>View Projects</p>
+                                <p style={{ fontSize: '14px', color: colors.text.secondary, margin: 0 }}>Manage your test projects</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <div style={{
+                    backgroundColor: colors.background.paper,
+                    borderRadius: '12px',
+                    padding: '24px',
+                    border: `1px solid ${colors.neutral[200]}`,
+                    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+                }}>
+                    <h2 style={{ fontSize: '18px', fontWeight: 600, color: colors.text.primary, marginBottom: '20px' }}>
+                        Getting Started {!isAdmin && '- QA Workflow'}
+                    </h2>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {steps.map((step, index) => (
+                            <StepCard
+                                key={index}
+                                step={index + 1}
+                                title={step.title}
+                                description={step.description}
+                                isActive={true}
+                                isCompleted={step.isCompleted}
+                                buttonLabel={step.buttonLabel}
+                                onButtonClick={step.onButtonClick}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

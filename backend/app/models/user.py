@@ -44,6 +44,13 @@ class User(Base):
     anthropic_api_key = Column(Text, nullable=True)
     google_api_key = Column(Text, nullable=True)
     azure_api_key = Column(Text, nullable=True)
+
+    # Jira Integration
+    jira_access_token = Column(Text, nullable=True)
+    jira_refresh_token = Column(Text, nullable=True)
+    jira_cloud_id = Column(String(255), nullable=True)
+    jira_site_name = Column(String(255), nullable=True)  # Display name of connected Jira site
+    jira_token_expires_at = Column(DateTime(timezone=True), nullable=True)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

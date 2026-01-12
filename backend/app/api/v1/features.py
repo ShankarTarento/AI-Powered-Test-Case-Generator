@@ -85,3 +85,49 @@ async def delete_feature(
     
     await db.delete(feature)
     await db.commit()
+
+@router.get("/stories/{story_id}")
+async def get_story(
+    story_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    """Get a story/epic with its children"""
+    result = await db.execute(select(Feature).where(Feature.id == story_id))
+    story = result.scalar_one_or_none()
+    
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+        
+    await deps.verify_project_access(story.project_id, current_user, db)
+    
+    # Get children if this is an Epic
+    children_result = await db.execute(
+        select(Feature).where(Feature.epic_id == story_id)
+    )
+    children = children_result.scalars().all()
+    
+    # Build response
+    return {
+        "id": str(story.id),
+        "name": story.name,
+        "description": story.description,
+        "epic_id": str(story.epic_id) if story.epic_id else None,
+        "jira_key": story.jira_key,
+        "jira_type": story.jira_type,
+        "jira_status": story.jira_status,
+        "created_at": story.created_at.isoformat(),
+        "children": [
+            {
+                "id": str(c.id),
+                "name": c.name,
+                "description": c.description,
+                "jira_key": c.jira_key,
+                "jira_type": c.jira_type,
+                "jira_status": c.jira_status,
+                "created_at": c.created_at.isoformat()
+            }
+            for c in children
+        ]
+    }
+

@@ -34,7 +34,8 @@ class Project(Base):
     organization = relationship("Organization", back_populates="projects")
     creator = relationship("User", back_populates="created_projects", foreign_keys=[created_by])
     members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
-    features = relationship("Feature", back_populates="project", cascade="all, delete-orphan")
+    features = relationship("UserStory", back_populates="project", cascade="all, delete-orphan")
+    user_stories = relationship("UserStory", back_populates="project", cascade="all, delete-orphan", overlaps="features")
     
     def __repr__(self):
         return f"<Project {self.name}>"

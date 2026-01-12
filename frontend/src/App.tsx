@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Settings from './pages/Settings';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
+import StoryDetail from './pages/StoryDetail';
 import Layout from './components/Layout';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -63,6 +64,7 @@ function AppRoutes() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/projects" element={<Projects />} />
                 <Route path="/projects/:id" element={<ProjectDetail />} />
+                <Route path="/stories/:id" element={<StoryDetail />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={
                     <div style={{

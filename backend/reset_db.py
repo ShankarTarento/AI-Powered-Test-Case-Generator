@@ -20,8 +20,13 @@ async def reset_db():
     async with engine.begin() as conn:
         logger.info("Dropping test_cases...")
         await conn.execute(text("DROP TABLE IF EXISTS test_cases CASCADE"))
-        logger.info("Dropping features...")
         await conn.execute(text("DROP TABLE IF EXISTS features CASCADE"))
+        await conn.execute(text("DROP TABLE IF EXISTS user_stories CASCADE"))
+        await conn.execute(text("DROP TABLE IF EXISTS sprints CASCADE"))
+        await conn.execute(text("DROP TABLE IF EXISTS project_members CASCADE"))
+        await conn.execute(text("DROP TABLE IF EXISTS projects CASCADE"))
+        await conn.execute(text("DROP TABLE IF EXISTS users CASCADE"))
+        await conn.execute(text("DROP TABLE IF EXISTS organizations CASCADE"))
         logger.info("Dropping sprints...")
         await conn.execute(text("DROP TABLE IF EXISTS sprints CASCADE"))
         
