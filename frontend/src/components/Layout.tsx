@@ -1,17 +1,18 @@
-import { Outlet } from 'react-router-dom'
-import Header from './Header'
-import Sidebar from './Sidebar'
+import { Outlet } from 'react-router-dom';
+import { colors } from '../theme';
+import Header from './Header';
+import Sidebar from './Sidebar';
 
 export default function Layout() {
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div style={{ minHeight: '100vh', backgroundColor: colors.background.default }}>
             <Header />
-            <div className="flex">
+            <div style={{ display: 'flex' }}>
                 <Sidebar />
-                <main className="flex-1 p-6">
+                <main style={{ flex: 1, padding: '24px' }}>
                     <Outlet />
                 </main>
             </div>
         </div>
-    )
+    );
 }

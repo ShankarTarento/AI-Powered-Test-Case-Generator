@@ -3,10 +3,46 @@
 @tailwind utilities;
 
 :root {
+    /* Primary Colors - Deep Blue */
+    --color-primary-50: #E8EDF7;
+    --color-primary-100: #D1DBEF;
+    --color-primary-200: #A3B7DF;
+    --color-primary-300: #7593CF;
+    --color-primary-400: #476FBF;
+    --color-primary-500: #1B4CA1;
+    --color-primary-600: #163D81;
+    --color-primary-700: #102E61;
+    --color-primary-800: #0B1F40;
+    --color-primary-900: #051020;
+
+    /* Secondary Colors - Orange */
+    --color-secondary-50: #FEF4ED;
+    --color-secondary-100: #FDE9DB;
+    --color-secondary-200: #FBD3B7;
+    --color-secondary-300: #F9BD93;
+    --color-secondary-400: #F7A76F;
+    --color-secondary-500: #F69953;
+    --color-secondary-600: #C47442;
+    --color-secondary-700: #935732;
+    --color-secondary-800: #623A21;
+    --color-secondary-900: #311D11;
+
+    /* Neutral Colors */
+    --color-neutral-50: #F9FAFB;
+    --color-neutral-100: #F3F4F6;
+    --color-neutral-200: #E5E7EB;
+    --color-neutral-300: #D1D5DB;
+    --color-neutral-400: #9CA3AF;
+    --color-neutral-500: #6B7280;
+    --color-neutral-600: #4B5563;
+    --color-neutral-700: #374151;
+    --color-neutral-800: #1F2937;
+    --color-neutral-900: #111827;
+
     font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
     line-height: 1.5;
     font-weight: 400;
-    color-scheme: light dark;
+    color-scheme: light;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -16,27 +52,80 @@
 body {
     margin: 0;
     min-height: 100vh;
-    background-color: #f9fafb;
+    background-color: var(--color-neutral-50);
 }
 
 #root {
     min-height: 100vh;
 }
 
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-neutral-100);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-neutral-300);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-neutral-400);
+}
+
+/* Focus styles */
+*:focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+}
+
+/* Smooth transitions */
+a, button {
+    transition: all 0.2s ease;
+}
+
 @layer components {
     .btn-primary {
-        @apply bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors;
+        @apply px-4 py-2 rounded-lg text-white font-medium transition-colors;
+        background: linear-gradient(135deg, var(--color-primary-500) 0%, var(--color-primary-700) 100%);
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, var(--color-primary-600) 0%, var(--color-primary-800) 100%);
     }
 
     .btn-secondary {
-        @apply bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors;
+        @apply px-4 py-2 rounded-lg font-medium transition-colors;
+        background-color: var(--color-neutral-100);
+        color: var(--color-neutral-700);
+    }
+
+    .btn-secondary:hover {
+        background-color: var(--color-neutral-200);
     }
 
     .card {
-        @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+        background-color: white;
+        border-radius: 12px;
+        border: 1px solid var(--color-neutral-200);
+        padding: 24px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
     }
 
     .input {
-        @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+        @apply w-full px-4 py-3 rounded-lg border transition-all;
+        border-color: var(--color-neutral-200);
+        background-color: var(--color-neutral-50);
+    }
+
+    .input:focus {
+        border-color: var(--color-primary-500);
+        background-color: white;
+        box-shadow: 0 0 0 3px rgba(27, 76, 161, 0.1);
     }
 }
