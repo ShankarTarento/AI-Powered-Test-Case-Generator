@@ -7,12 +7,13 @@ from jose import jwt, JWTError
 from app.core.config import settings
 
 
-def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(user_id: str, role: str = "qa", expires_delta: Optional[timedelta] = None) -> str:
     """
     Create a new JWT access token
     
     Args:
         user_id: User ID to encode in token
+        role: User role to include in token
         expires_delta: Optional custom expiration time
         
     Returns:
@@ -25,6 +26,7 @@ def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None)
     
     payload = {
         "sub": str(user_id),
+        "role": role,
         "exp": expire,
         "type": "access"
     }
@@ -90,4 +92,20 @@ def decode_token(token: str) -> Optional[str]:
     payload = verify_token(token, token_type="access")
     if payload:
         return payload.get("sub")
+    return None
+
+
+def get_token_role(token: str) -> Optional[str]:
+    """
+    Get user role from token
+    
+    Args:
+        token: JWT token string
+        
+    Returns:
+        User role if token is valid, None otherwise
+    """
+    payload = verify_token(token, token_type="access")
+    if payload:
+        return payload.get("role")
     return None

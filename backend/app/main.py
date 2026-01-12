@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 import logging
 
 from app.core.config import settings
-from app.api.v1 import auth, jira, test_cases, ai, analytics
+from app.api.v1 import auth, jira, test_cases, ai, analytics, projects, features
 
 # Configure logging
 logging.basicConfig(
@@ -37,8 +37,10 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(projects.router, prefix="/api/v1/projects", tags=["Projects"])
+app.include_router(features.router, prefix="/api/v1", tags=["Features"])
+app.include_router(test_cases.router, prefix="/api/v1", tags=["Test Cases"])
 app.include_router(jira.router, prefix="/api/v1/jira", tags=["Jira Integration"])
-app.include_router(test_cases.router, prefix="/api/v1/test-cases", tags=["Test Cases"])
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["AI Generation"])
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics"])
 

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { apiClient, User, LoginRequest, RegisterRequest } from '../services/api';
+import { apiClient, User, LoginRequest, RegisterRequest, UserRole } from '../services/api';
 
 interface AuthContextType {
     user: User | null;
@@ -8,6 +8,7 @@ interface AuthContextType {
     register: (data: RegisterRequest) => Promise<void>;
     logout: () => Promise<void>;
     isAuthenticated: boolean;
+    isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,24 +41,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const response = await apiClient.login(data);
         localStorage.setItem('access_token', response.access_token);
         localStorage.setItem('refresh_token', response.refresh_token);
-
-        const currentUser = await apiClient.getCurrentUser();
-        setUser(currentUser);
+        setUser(response.user);
     };
 
     const register = async (data: RegisterRequest) => {
         const response = await apiClient.register(data);
         localStorage.setItem('access_token', response.access_token);
         localStorage.setItem('refresh_token', response.refresh_token);
-
-        const currentUser = await apiClient.getCurrentUser();
-        setUser(currentUser);
+        setUser(response.user);
     };
 
     const logout = async () => {
         await apiClient.logout();
         setUser(null);
     };
+
+    const isAdmin = user?.role === 'admin';
 
     return (
         <AuthContext.Provider
@@ -68,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 register,
                 logout,
                 isAuthenticated: !!user,
+                isAdmin,
             }}
         >
             {children}

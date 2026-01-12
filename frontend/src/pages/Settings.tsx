@@ -1,16 +1,58 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { apiClient } from '../services/api';
 import { colors } from '../theme';
 
 export default function Settings() {
-    const { user } = useAuth();
+    const { user, isAdmin } = useAuth();
     const [activeTab, setActiveTab] = useState('profile');
+    const [passwordData, setPasswordData] = useState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+    });
+    const [passwordError, setPasswordError] = useState('');
+    const [passwordSuccess, setPasswordSuccess] = useState('');
+    const [saving, setSaving] = useState(false);
 
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setPasswordError('');
+        setPasswordSuccess('');
+
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+            setPasswordError('New passwords do not match');
+            return;
+        }
+
+        if (passwordData.newPassword.length < 8) {
+            setPasswordError('Password must be at least 8 characters');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            await apiClient.changePassword({
+                current_password: passwordData.currentPassword,
+                new_password: passwordData.newPassword,
+                confirm_password: passwordData.confirmPassword
+            });
+            setPasswordSuccess('Password changed successfully!');
+            setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        } catch (err) {
+            setPasswordError(err instanceof Error ? err.message : 'Failed to change password');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Tabs based on role
     const tabs = [
         { id: 'profile', label: 'Profile' },
-        { id: 'integrations', label: 'Integrations' },
-        { id: 'ai', label: 'AI Settings' },
-        { id: 'notifications', label: 'Notifications' },
+        { id: 'security', label: 'Security' },
+        { id: 'jira', label: 'Jira Integration' },
+        // AI Settings only for Admin
+        ...(isAdmin ? [{ id: 'ai', label: 'AI Settings' }] : [])
     ];
 
     const inputStyle: React.CSSProperties = {
@@ -65,6 +107,27 @@ export default function Settings() {
                 </p>
             </div>
 
+            {/* Must Change Password Warning */}
+            {user?.must_change_password && (
+                <div style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    backgroundColor: '#FEF3C7',
+                    border: '1px solid #FCD34D',
+                    marginBottom: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2">
+                        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span style={{ color: '#92400E', fontWeight: 500 }}>
+                        Please change your default password in the Security tab below.
+                    </span>
+                </div>
+            )}
+
             {/* Tabs */}
             <div style={{
                 borderBottom: `1px solid ${colors.neutral[200]}`,
@@ -97,7 +160,7 @@ export default function Settings() {
                 ))}
             </div>
 
-            {/* Tab Content */}
+            {/* Profile Tab */}
             {activeTab === 'profile' && (
                 <div style={cardStyle}>
                     <h2 style={{ fontSize: '18px', fontWeight: 600, color: colors.text.primary, marginBottom: '24px' }}>
@@ -125,6 +188,24 @@ export default function Settings() {
                                 Email cannot be changed
                             </p>
                         </div>
+                        <div>
+                            <label style={labelStyle}>Organization</label>
+                            <input
+                                type="text"
+                                defaultValue={user?.organization?.name || 'N/A'}
+                                style={{ ...inputStyle, backgroundColor: colors.neutral[100], cursor: 'not-allowed' }}
+                                disabled
+                            />
+                        </div>
+                        <div>
+                            <label style={labelStyle}>Role</label>
+                            <input
+                                type="text"
+                                defaultValue={user?.role?.toUpperCase() || 'N/A'}
+                                style={{ ...inputStyle, backgroundColor: colors.neutral[100], cursor: 'not-allowed' }}
+                                disabled
+                            />
+                        </div>
                         <div style={{ paddingTop: '8px' }}>
                             <button type="submit" style={buttonStyle}>
                                 Save Changes
@@ -134,57 +215,169 @@ export default function Settings() {
                 </div>
             )}
 
-            {activeTab === 'integrations' && (
+            {/* Security Tab */}
+            {activeTab === 'security' && (
                 <div style={cardStyle}>
                     <h2 style={{ fontSize: '18px', fontWeight: 600, color: colors.text.primary, marginBottom: '24px' }}>
-                        Integrations
+                        Change Password
                     </h2>
+
+                    {passwordError && (
+                        <div style={{
+                            padding: '12px 16px',
+                            borderRadius: '8px',
+                            backgroundColor: '#FEF2F2',
+                            border: '1px solid #FECACA',
+                            marginBottom: '16px'
+                        }}>
+                            <p style={{ color: colors.error.main, margin: 0, fontSize: '14px' }}>{passwordError}</p>
+                        </div>
+                    )}
+
+                    {passwordSuccess && (
+                        <div style={{
+                            padding: '12px 16px',
+                            borderRadius: '8px',
+                            backgroundColor: '#DCFCE7',
+                            border: '1px solid #86EFAC',
+                            marginBottom: '16px'
+                        }}>
+                            <p style={{ color: '#166534', margin: 0, fontSize: '14px' }}>{passwordSuccess}</p>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div>
+                            <label style={labelStyle}>Current Password</label>
+                            <input
+                                type="password"
+                                value={passwordData.currentPassword}
+                                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                                style={inputStyle}
+                                placeholder="Enter current password"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label style={labelStyle}>New Password</label>
+                            <input
+                                type="password"
+                                value={passwordData.newPassword}
+                                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                                style={inputStyle}
+                                placeholder="Enter new password (min 8 characters)"
+                                required
+                                minLength={8}
+                            />
+                        </div>
+                        <div>
+                            <label style={labelStyle}>Confirm New Password</label>
+                            <input
+                                type="password"
+                                value={passwordData.confirmPassword}
+                                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                                style={inputStyle}
+                                placeholder="Confirm new password"
+                                required
+                                minLength={8}
+                            />
+                        </div>
+                        <div style={{ paddingTop: '8px' }}>
+                            <button
+                                type="submit"
+                                disabled={saving}
+                                style={{
+                                    ...buttonStyle,
+                                    opacity: saving ? 0.5 : 1,
+                                    cursor: saving ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                {saving ? 'Changing...' : 'Change Password'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {/* Jira Integration Tab - Available to All Users */}
+            {activeTab === 'jira' && (
+                <div style={cardStyle}>
+                    <h2 style={{ fontSize: '18px', fontWeight: 600, color: colors.text.primary, marginBottom: '8px' }}>
+                        Jira Integration
+                    </h2>
+                    <p style={{ fontSize: '14px', color: colors.text.secondary, marginBottom: '24px' }}>
+                        Connect your Jira account to import user stories and sync test cases
+                    </p>
+
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        padding: '16px',
+                        padding: '20px',
                         borderRadius: '12px',
-                        border: `1px solid ${colors.neutral[200]}`
+                        border: `1px solid ${colors.neutral[200]}`,
+                        marginBottom: '20px'
                     }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                             <div style={{
                                 width: '48px',
                                 height: '48px',
                                 borderRadius: '12px',
-                                backgroundColor: colors.primary[100],
+                                backgroundColor: '#0052CC',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center'
                             }}>
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill={colors.primary[600]}>
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                    <path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.004-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.213 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.001 1.001 0 0 0 23.013 0z" />
                                 </svg>
                             </div>
                             <div>
-                                <p style={{ fontWeight: 500, color: colors.text.primary, marginBottom: '2px' }}>Jira</p>
-                                <p style={{ fontSize: '14px', color: colors.text.secondary, margin: 0 }}>
-                                    Connect to sync user stories
+                                <p style={{ fontWeight: 600, color: colors.text.primary, marginBottom: '4px' }}>Jira Software</p>
+                                <p style={{ fontSize: '13px', color: colors.text.secondary, margin: 0 }}>
+                                    Import projects and user stories
                                 </p>
                             </div>
                         </div>
-                        <button style={buttonStyle}>Connect</button>
+                        <button style={buttonStyle}>Connect Jira</button>
+                    </div>
+
+                    <div style={{
+                        padding: '16px',
+                        borderRadius: '8px',
+                        backgroundColor: colors.primary[50],
+                        border: `1px solid ${colors.primary[100]}`
+                    }}>
+                        <h4 style={{ fontSize: '14px', fontWeight: 600, color: colors.primary[700], marginBottom: '8px' }}>
+                            How it works
+                        </h4>
+                        <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: colors.text.secondary, lineHeight: 1.8 }}>
+                            <li>Connect your Jira account using OAuth</li>
+                            <li>Select projects to sync user stories from</li>
+                            <li>Generate AI test cases from imported stories</li>
+                            <li>Push test cases back to Jira as test items</li>
+                        </ul>
                     </div>
                 </div>
             )}
 
-            {activeTab === 'ai' && (
+            {/* AI Settings Tab - Admin Only */}
+            {activeTab === 'ai' && isAdmin && (
                 <div style={cardStyle}>
-                    <h2 style={{ fontSize: '18px', fontWeight: 600, color: colors.text.primary, marginBottom: '24px' }}>
-                        AI Settings
+                    <h2 style={{ fontSize: '18px', fontWeight: 600, color: colors.text.primary, marginBottom: '8px' }}>
+                        AI Configuration
                     </h2>
+                    <p style={{ fontSize: '14px', color: colors.text.secondary, marginBottom: '24px' }}>
+                        Configure AI settings for your organization. These settings apply to all team members.
+                    </p>
+
                     <form style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         <div>
                             <label style={labelStyle}>AI Provider</label>
                             <select style={inputStyle}>
-                                <option>OpenAI</option>
-                                <option>Anthropic</option>
-                                <option>Google AI</option>
+                                <option value="openai">OpenAI (GPT-4)</option>
+                                <option value="anthropic">Anthropic (Claude)</option>
+                                <option value="google">Google AI (Gemini)</option>
                             </select>
                         </div>
                         <div>
@@ -198,50 +391,30 @@ export default function Settings() {
                                 Your API key is encrypted and stored securely
                             </p>
                         </div>
+                        <div>
+                            <label style={labelStyle}>Model</label>
+                            <select style={inputStyle}>
+                                <option value="gpt-4o">GPT-4o (Recommended)</option>
+                                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style={labelStyle}>Max Tokens</label>
+                            <input
+                                type="number"
+                                style={inputStyle}
+                                defaultValue={4096}
+                                min={256}
+                                max={8192}
+                            />
+                        </div>
                         <div style={{ paddingTop: '8px' }}>
                             <button type="submit" style={buttonStyle}>
-                                Save Settings
+                                Save AI Settings
                             </button>
                         </div>
                     </form>
-                </div>
-            )}
-
-            {activeTab === 'notifications' && (
-                <div style={cardStyle}>
-                    <h2 style={{ fontSize: '18px', fontWeight: 600, color: colors.text.primary, marginBottom: '24px' }}>
-                        Notification Preferences
-                    </h2>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {[
-                            { label: 'Email notifications for new test cases', defaultChecked: true },
-                            { label: 'Weekly summary reports', defaultChecked: true },
-                            { label: 'Sprint completion alerts', defaultChecked: false }
-                        ].map((item, index) => (
-                            <label
-                                key={index}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '12px',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                <input
-                                    type="checkbox"
-                                    defaultChecked={item.defaultChecked}
-                                    style={{
-                                        width: '16px',
-                                        height: '16px',
-                                        accentColor: colors.primary[500]
-                                    }}
-                                />
-                                <span style={{ fontSize: '14px', color: colors.neutral[700] }}>
-                                    {item.label}
-                                </span>
-                            </label>
-                        ))}
-                    </div>
                 </div>
             )}
         </div>
