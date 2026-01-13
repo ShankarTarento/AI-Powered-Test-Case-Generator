@@ -20,15 +20,31 @@ async def get_project_features(
     """List all top-level features for a project (Epics and standalone stories, not child stories)"""
     await deps.verify_project_access(project_id, current_user, db)
     
-    # Only return top-level items (epic_id is NULL)
-    # Child stories linked to an Epic are shown inside the Epic detail page
-    query = select(Feature).where(
-        Feature.project_id == project_id,
-        Feature.epic_id == None  # Only top-level items
+    # Subquery to count test cases
+    from sqlalchemy import select, func, desc
+    from app.models import TestCase
+    
+    test_case_subquery = (
+        select(func.count(TestCase.id))
+        .where(TestCase.user_story_id == Feature.id)
+        .scalar_subquery()
     )
+    
+    query = select(
+        Feature,
+        test_case_subquery.label("test_case_count")
+    ).where(
+        Feature.project_id == project_id,
+        Feature.epic_id == None
+    ).order_by(desc(Feature.created_at))
         
-    result = await db.execute(query.order_by(desc(Feature.created_at)))
-    features = result.scalars().all()
+    result = await db.execute(query)
+    
+    features = []
+    for feature, count in result.all():
+        feature.test_case_count = count or 0
+        features.append(feature)
+        
     return features
 
 @router.post("/projects/{project_id}/features", response_model=FeatureResponse)
@@ -97,20 +113,31 @@ async def get_story(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
-    """Get a story/epic with its children"""
-    result = await db.execute(select(Feature).where(Feature.id == story_id))
-    story = result.scalar_one_or_none()
+    from sqlalchemy import select, func, desc
+    from app.models import TestCase
     
-    if not story:
+    # Subquery to count test cases
+    def get_count_subquery(feature_id_col):
+        return select(func.count(TestCase.id)).where(TestCase.user_story_id == feature_id_col).scalar_subquery()
+
+    result = await db.execute(
+        select(Feature, get_count_subquery(Feature.id).label("count"))
+        .where(Feature.id == story_id)
+    )
+    story_row = result.first()
+    
+    if not story_row:
         raise HTTPException(status_code=404, detail="Story not found")
         
+    story, story_test_count = story_row
     await deps.verify_project_access(story.project_id, current_user, db)
     
-    # Get children if this is an Epic
+    # Get children with their counts
     children_result = await db.execute(
-        select(Feature).where(Feature.epic_id == story_id)
+        select(Feature, get_count_subquery(Feature.id).label("count"))
+        .where(Feature.epic_id == story_id)
     )
-    children = children_result.scalars().all()
+    children_data = children_result.all()
     
     # Build response
     return {
@@ -121,6 +148,7 @@ async def get_story(
         "jira_key": story.jira_key,
         "jira_type": story.jira_type,
         "jira_status": story.jira_status,
+        "test_case_count": story_test_count or 0,
         "created_at": story.created_at.isoformat(),
         "children": [
             {
@@ -130,9 +158,10 @@ async def get_story(
                 "jira_key": c.jira_key,
                 "jira_type": c.jira_type,
                 "jira_status": c.jira_status,
+                "test_case_count": c_count or 0,
                 "created_at": c.created_at.isoformat()
             }
-            for c in children
+            for c, c_count in children_data
         ]
     }
 

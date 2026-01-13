@@ -30,6 +30,7 @@ class UserStoryResponse(UserStoryBase):
     synced_at: datetime
     created_at: datetime
     updated_at: datetime
+    test_case_count: int = 0
 
     class Config:
         from_attributes = True

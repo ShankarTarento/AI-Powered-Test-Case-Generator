@@ -25,6 +25,12 @@ class Organization(Base):
     # Relationships
     users = relationship("User", back_populates="organization")
     projects = relationship("Project", back_populates="organization")
+    knowledge_batches = relationship(
+        "KnowledgeBatch", back_populates="organization", cascade="all, delete-orphan"
+    )
+    knowledge_entries = relationship(
+        "KnowledgeEntry", back_populates="organization", cascade="all, delete-orphan"
+    )
     
     def __repr__(self):
         return f"<Organization {self.name}>"

@@ -84,6 +84,33 @@ export default function ProjectDetail() {
         }
     };
 
+    const handleGenerateAI = async (featureId: string) => {
+        setActionLoading(true);
+        try {
+            await apiClient.generateTestCases(featureId);
+            loadProjectData();
+            alert('Test cases generated successfully!');
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to generate test cases');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleBulkGenerateAI = async (epicId: string) => {
+        if (!confirm('This will generate test cases for all child stories. Continue?')) return;
+        setActionLoading(true);
+        try {
+            const result = await apiClient.bulkGenerateTestCases(epicId);
+            loadProjectData();
+            alert(`Bulk generation complete! Processed ${result.stories_processed} stories and generated ${result.test_cases_generated} test cases.`);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed bulk generation');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const tabs = [
         { id: 'overview' as TabType, label: 'Overview', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
         { id: 'features' as TabType, label: 'Epics & Stories', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
@@ -320,12 +347,46 @@ export default function ProjectDetail() {
                                             {feature.description?.substring(0, 100)}{feature.description && feature.description.length > 100 ? '...' : ''}
                                         </p>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        {feature.jira_status && (
-                                            <span style={{ fontSize: '12px', background: colors.neutral[100], color: colors.text.secondary, padding: '4px 8px', borderRadius: '4px' }}>
-                                                {feature.jira_status}
-                                            </span>
-                                        )}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                        <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                                            {feature.test_case_count > 0 ? (
+                                                <span style={{ fontSize: '12px', background: colors.secondary[50], color: colors.secondary[700], padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
+                                                    {feature.test_case_count} Tests
+                                                </span>
+                                            ) : (
+                                                <span style={{ fontSize: '12px', color: colors.text.secondary }}>No tests</span>
+                                            )}
+                                            {feature.jira_status && (
+                                                <span style={{ fontSize: '11px', color: colors.text.secondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                    {feature.jira_status}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                feature.jira_type === 'epic' ? handleBulkGenerateAI(feature.id) : handleGenerateAI(feature.id);
+                                            }}
+                                            disabled={actionLoading}
+                                            style={{
+                                                padding: '8px 12px',
+                                                background: colors.primary[50],
+                                                color: colors.primary[600],
+                                                borderRadius: '8px',
+                                                border: `1px solid ${colors.primary[200]}`,
+                                                cursor: 'pointer',
+                                                fontSize: '12px',
+                                                fontWeight: 600,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px'
+                                            }}
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                                <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                            {feature.jira_type === 'epic' ? 'Bulk AI' : 'Generate AI'}
+                                        </button>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={colors.neutral[400]} strokeWidth="2">
                                             <path d="M9 18l6-6-6-6" />
                                         </svg>

@@ -4,3 +4,6 @@ export { default as Dashboard } from './Dashboard';
 export { default as Settings } from './Settings';
 export { default as Projects } from './Projects';
 export { default as ProjectDetail } from './ProjectDetail';
+export { default as AISettings } from './AISettings';
+export { default as KnowledgeBase } from './KnowledgeBase';
+export { default as StoryDetail } from './StoryDetail';

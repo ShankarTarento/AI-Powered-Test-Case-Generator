@@ -36,6 +36,12 @@ class Project(Base):
     members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
     features = relationship("UserStory", back_populates="project", cascade="all, delete-orphan")
     user_stories = relationship("UserStory", back_populates="project", cascade="all, delete-orphan", overlaps="features")
+    knowledge_batches = relationship(
+        "KnowledgeBatch", back_populates="project", cascade="all, delete-orphan"
+    )
+    knowledge_entries = relationship(
+        "KnowledgeEntry", back_populates="project", cascade="all, delete-orphan"
+    )
     
     def __repr__(self):
         return f"<Project {self.name}>"

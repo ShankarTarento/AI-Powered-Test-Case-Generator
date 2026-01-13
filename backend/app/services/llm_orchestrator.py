@@ -43,6 +43,10 @@ class LLMOrchestrator:
         "azure": {
             "models": ["azure/gpt-4", "azure/gpt-35-turbo"],
             "embedding_model": "azure/text-embedding-ada-002"
+        },
+        "litellm": {
+            "models": ["gpt-4o", "gemini-pro", "claude-3-5-sonnet-20240620"],
+            "embedding_model": None
         }
     }
     
@@ -244,26 +248,47 @@ class LLMOrchestrator:
         
         return round(input_cost + output_cost, 6)
     
-    async def verify_api_key(self, api_key: str, provider: str) -> Dict[str, Any]:
+    async def verify_api_key(self, api_key: str, provider: str, model: str = None, base_url: str = None) -> Dict[str, Any]:
         """
         Verify if API key is valid by making a test request
         """
         try:
-            test_prompt = "Say 'API key verified' in 3 words."
-            model = self.SUPPORTED_PROVIDERS[provider]["models"][0]
+            test_prompt = "Say 'OK' in one word."
+            # For litellm or custom providers, use provided model or default
+            if model:
+                test_model = model
+            elif provider in self.SUPPORTED_PROVIDERS:
+                test_model = self.SUPPORTED_PROVIDERS[provider]["models"][0]
+            else:
+                test_model = "gpt-4o"  # fallback default
+            
+            # Build completion kwargs
+            completion_kwargs = {
+                "messages": [{"role": "user", "content": test_prompt}],
+                "api_key": api_key,
+                "max_tokens": 10
+            }
+            
+            # For LiteLLM proxy with base_url, use openai/ prefix to force OpenAI-compatible routing
+            if base_url:
+                completion_kwargs["api_base"] = base_url
+                # Prefix model with openai/ to use OpenAI-compatible endpoint format
+                if not test_model.startswith("openai/"):
+                    completion_kwargs["model"] = f"openai/{test_model}"
+                else:
+                    completion_kwargs["model"] = test_model
+            else:
+                completion_kwargs["model"] = test_model
             
             response = await asyncio.to_thread(
                 completion,
-                model=model,
-                messages=[{"role": "user", "content": test_prompt}],
-                api_key=api_key,
-                max_tokens=10
+                **completion_kwargs
             )
             
             return {
                 "valid": True,
                 "provider": provider,
-                "model": model,
+                "model": test_model,
                 "message": "API key verified successfully"
             }
         except Exception as e:

@@ -44,6 +44,9 @@ class UserStory(Base):
     # Relationships
     project = relationship("Project", back_populates="user_stories")
     test_cases = relationship("TestCase", back_populates="user_story", cascade="all, delete-orphan")
+    knowledge_entries = relationship(
+        "KnowledgeEntry", back_populates="user_story", cascade="all, delete-orphan"
+    )
     
     # Self-referential for Epic -> Stories
     children = relationship("UserStory", back_populates="parent_epic", foreign_keys=[epic_id])

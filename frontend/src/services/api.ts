@@ -333,6 +333,36 @@ class ApiClient {
         });
         return this.handleResponse<BulkGenerateResult>(response);
     }
+
+    // Knowledge Base Methods
+    async uploadKnowledgeBatch(projectId: string, file: File): Promise<KnowledgeBatch> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`${this.baseUrl}/api/v1/projects/${projectId}/knowledge-batches`, {
+            method: 'POST',
+            headers: {
+                ...(token && { Authorization: `Bearer ${token}` }),
+            },
+            body: formData,
+        });
+        return this.handleResponse<KnowledgeBatch>(response);
+    }
+
+    async listKnowledgeBatches(projectId: string): Promise<KnowledgeBatch[]> {
+        const response = await fetch(`${this.baseUrl}/api/v1/projects/${projectId}/knowledge-batches`, {
+            headers: this.getAuthHeaders(),
+        });
+        return this.handleResponse<KnowledgeBatch[]>(response);
+    }
+
+    async listKnowledgeEntries(projectId: string, limit: number = 50): Promise<KnowledgeEntry[]> {
+        const response = await fetch(`${this.baseUrl}/api/v1/projects/${projectId}/knowledge-entries?limit=${limit}`, {
+            headers: this.getAuthHeaders(),
+        });
+        return this.handleResponse<KnowledgeEntry[]>(response);
+    }
 }
 
 
@@ -359,6 +389,7 @@ export interface UserStory {
     jira_key?: string;
     jira_type: 'epic' | 'story' | 'bug' | 'task';
     jira_status?: string;
+    test_case_count: number;
     created_at: string;
     children?: UserStory[];
 }
@@ -402,6 +433,81 @@ export interface TestCase {
     test_type: string;
     status: 'draft' | 'active' | 'passed' | 'failed' | 'skipped';
     created_at: string;
+}
+
+export interface KnowledgeBatch {
+    id: string;
+    project_id: string;
+    file_name: string;
+    file_type: string;
+    file_size_bytes: number;
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    total_rows: number;
+    processed_rows: number;
+    indexed_rows: number;
+    error_details?: Record<string, unknown>;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface KnowledgeEntry {
+    id: string;
+    batch_id: string;
+    project_id: string;
+    jira_key?: string;
+    title: string;
+    description?: string;
+    steps?: TestCaseStep[];
+    expected_result?: string;
+    status: string;
+    created_at: string;
+}
+
+// AI Connection Test
+export interface TestConnectionParams {
+    provider: string;
+    model: string;
+    base_url?: string;
+    api_key?: string;
+}
+
+export interface TestConnectionResult {
+    success: boolean;
+    message: string;
+}
+
+export async function testAIConnection(
+    params: TestConnectionParams
+): Promise<TestConnectionResult> {
+    try {
+        const res = await fetch(
+            `${API_BASE_URL}/api/v1/ai/test-connection`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                },
+                body: JSON.stringify({
+                    provider: params.provider,
+                    model: params.model,
+                    base_url: params.base_url || undefined,
+                    api_key: params.api_key || undefined
+                })
+            }
+        );
+
+        const data = await res.json();
+        return {
+            success: data.success,
+            message: data.message
+        };
+    } catch {
+        return {
+            success: false,
+            message: 'Connection test failed'
+        };
+    }
 }
 
 

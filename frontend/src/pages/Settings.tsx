@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/api';
 import { colors } from '../theme';
@@ -14,6 +14,50 @@ export default function Settings() {
     const [passwordError, setPasswordError] = useState('');
     const [passwordSuccess, setPasswordSuccess] = useState('');
     const [saving, setSaving] = useState(false);
+
+    // AI Settings State
+    const [aiProvider, setAiProvider] = useState('openai');
+    const [aiApiKey, setAiApiKey] = useState('');
+    const [aiModel, setAiModel] = useState('');
+    const [customModel, setCustomModel] = useState('');
+    const [aiMessage, setAiMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [aiSaving, setAiSaving] = useState(false);
+    const [aiTesting, setAiTesting] = useState(false);
+    const [aiBaseUrl, setAiBaseUrl] = useState('');
+
+    const PROVIDER_MODELS: Record<string, string[]> = {
+        openai: ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'],
+        anthropic: ['claude-3-5-sonnet-20240620', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229'],
+        google: ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-pro']
+    };
+
+    // Load AI preferences on mount
+    useEffect(() => {
+        const loadAIConfig = async () => {
+            try {
+                const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+                const response = await fetch(`${API_BASE}/api/v1/ai/providers`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.preferred_provider) setAiProvider(data.preferred_provider);
+                    if (data.preferred_model) {
+                        const models = PROVIDER_MODELS[data.preferred_provider] || [];
+                        if (models.includes(data.preferred_model)) {
+                            setAiModel(data.preferred_model);
+                        } else {
+                            setAiModel('custom');
+                            setCustomModel(data.preferred_model);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load AI config', err);
+            }
+        };
+        if (isAdmin) loadAIConfig();
+    }, [isAdmin]);
 
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -43,6 +87,69 @@ export default function Settings() {
             setPasswordError(err instanceof Error ? err.message : 'Failed to change password');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleSaveAI = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!aiApiKey) return;
+        setAiSaving(true);
+        setAiMessage(null);
+        try {
+            const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            const selectedModel = aiModel === 'custom' ? customModel : aiModel;
+            const response = await fetch(`${API_BASE}/api/v1/ai/configure`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                },
+                body: JSON.stringify({ provider: aiProvider, api_key: aiApiKey, model: selectedModel })
+            });
+            if (response.ok) {
+                setAiMessage({ type: 'success', text: `${aiProvider} API key saved successfully!` });
+                setAiApiKey('');
+            } else {
+                const err = await response.json();
+                setAiMessage({ type: 'error', text: err.detail || 'Failed to save' });
+            }
+        } catch {
+            setAiMessage({ type: 'error', text: 'Network error' });
+        } finally {
+            setAiSaving(false);
+        }
+    };
+
+    const handleTestAI = async () => {
+        if (!aiApiKey) return;
+        setAiTesting(true);
+        setAiMessage(null);
+        try {
+            const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            const selectedModel = aiModel === 'custom' ? customModel : aiModel;
+            const response = await fetch(`${API_BASE}/api/v1/ai/test-connection`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                },
+                body: JSON.stringify({
+                    provider: aiProvider,
+                    api_key: aiApiKey,
+                    model: selectedModel,
+                    base_url: aiProvider === 'litellm' ? aiBaseUrl : undefined
+                })
+            });
+            const data = await response.json();
+            if (data.success) {
+                setAiMessage({ type: 'success', text: data.message || 'Connection successful!' });
+            } else {
+                setAiMessage({ type: 'error', text: data.message || 'Test failed' });
+            }
+        } catch {
+            setAiMessage({ type: 'error', text: 'Network error during test' });
+        } finally {
+            setAiTesting(false);
         }
     };
 
@@ -371,47 +478,143 @@ export default function Settings() {
                         Configure AI settings for your organization. These settings apply to all team members.
                     </p>
 
-                    <form style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        <div>
-                            <label style={labelStyle}>AI Provider</label>
-                            <select style={inputStyle}>
-                                <option value="openai">OpenAI (GPT-4)</option>
-                                <option value="anthropic">Anthropic (Claude)</option>
-                                <option value="google">Google AI (Gemini)</option>
-                            </select>
+                    <form onSubmit={handleSaveAI} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        {/* Row 1: Provider and Model */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                            <div>
+                                <label style={labelStyle}>Provider</label>
+                                <select
+                                    style={inputStyle}
+                                    value={aiProvider}
+                                    onChange={(e) => setAiProvider(e.target.value)}
+                                >
+                                    <option value="openai">OpenAI</option>
+                                    <option value="anthropic">Anthropic</option>
+                                    <option value="google">Google AI</option>
+                                    <option value="litellm">LiteLLM Proxy</option>
+                                </select>
+                                <p style={{ marginTop: '4px', fontSize: '12px', color: colors.text.secondary }}>
+                                    {aiProvider === 'litellm' ? 'Multi-model access via LiteLLM proxy server' : `Direct API access to ${aiProvider}`}
+                                </p>
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Model</label>
+                                <input
+                                    type="text"
+                                    style={inputStyle}
+                                    placeholder="e.g., gpt-4o, gemini-pro"
+                                    value={aiModel === 'custom' ? customModel : aiModel}
+                                    onChange={(e) => {
+                                        setAiModel('custom');
+                                        setCustomModel(e.target.value);
+                                    }}
+                                    list="model-suggestions"
+                                />
+                                <datalist id="model-suggestions">
+                                    {PROVIDER_MODELS[aiProvider]?.map(m => (
+                                        <option key={m} value={m} />
+                                    ))}
+                                </datalist>
+                                <p style={{ marginTop: '4px', fontSize: '12px', color: colors.text.secondary }}>
+                                    Select from suggestions or type a custom model name
+                                </p>
+                            </div>
                         </div>
+
+                        {/* Row 2: LiteLLM Proxy URL (conditional) */}
+                        {aiProvider === 'litellm' && (
+                            <div>
+                                <label style={labelStyle}>LiteLLM Proxy URL</label>
+                                <input
+                                    type="text"
+                                    style={inputStyle}
+                                    placeholder="https://litellm.example.com"
+                                    value={aiBaseUrl}
+                                    onChange={(e) => setAiBaseUrl(e.target.value)}
+                                />
+                                <p style={{ marginTop: '4px', fontSize: '12px', color: colors.text.secondary }}>
+                                    Your LiteLLM proxy server endpoint
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Row 3: API Key */}
                         <div>
                             <label style={labelStyle}>API Key</label>
                             <input
                                 type="password"
                                 style={inputStyle}
-                                placeholder="sk-..."
-                            />
-                            <p style={{ marginTop: '4px', fontSize: '12px', color: colors.text.secondary }}>
-                                Your API key is encrypted and stored securely
-                            </p>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Model</label>
-                            <select style={inputStyle}>
-                                <option value="gpt-4o">GPT-4o (Recommended)</option>
-                                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Max Tokens</label>
-                            <input
-                                type="number"
-                                style={inputStyle}
-                                defaultValue={4096}
-                                min={256}
-                                max={8192}
+                                placeholder="Enter your API key..."
+                                value={aiApiKey}
+                                onChange={(e) => setAiApiKey(e.target.value)}
                             />
                         </div>
-                        <div style={{ paddingTop: '8px' }}>
-                            <button type="submit" style={buttonStyle}>
-                                Save AI Settings
+
+                        {/* Connection Status */}
+                        {aiMessage && (
+                            <div style={{
+                                padding: '12px 16px',
+                                borderRadius: '8px',
+                                backgroundColor: aiMessage.type === 'success' ? '#E3FCEF' : '#FEE2E2',
+                                border: `1px solid ${aiMessage.type === 'success' ? '#A7F3D0' : '#FECACA'}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                            }}>
+                                {aiMessage.type === 'success' ? (
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2">
+                                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                ) : (
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2">
+                                        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                )}
+                                <span style={{
+                                    color: aiMessage.type === 'success' ? '#065F46' : '#991B1B',
+                                    fontSize: '14px'
+                                }}>
+                                    {aiMessage.text}
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button
+                                type="submit"
+                                disabled={aiSaving || !aiApiKey}
+                                style={{
+                                    ...buttonStyle,
+                                    opacity: aiSaving || !aiApiKey ? 0.5 : 1,
+                                    cursor: aiApiKey ? 'pointer' : 'not-allowed'
+                                }}
+                            >
+                                {aiSaving ? 'Saving...' : 'Save Configuration'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleTestAI}
+                                disabled={aiTesting || !aiApiKey}
+                                style={{
+                                    padding: '10px 20px',
+                                    borderRadius: '8px',
+                                    border: `1px solid ${colors.neutral[300]}`,
+                                    background: 'white',
+                                    color: colors.text.primary,
+                                    fontSize: '14px',
+                                    fontWeight: 500,
+                                    cursor: aiApiKey ? 'pointer' : 'not-allowed',
+                                    opacity: aiTesting ? 0.7 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                {aiTesting ? 'Testing...' : 'Test Connection'}
                             </button>
                         </div>
                     </form>

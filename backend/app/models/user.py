@@ -44,6 +44,10 @@ class User(Base):
     anthropic_api_key = Column(Text, nullable=True)
     google_api_key = Column(Text, nullable=True)
     azure_api_key = Column(Text, nullable=True)
+    
+    # AI Preferences
+    preferred_ai_provider = Column(String(50), nullable=True, default="openai")
+    preferred_ai_model = Column(String(100), nullable=True)
 
     # Jira Integration
     jira_access_token = Column(Text, nullable=True)

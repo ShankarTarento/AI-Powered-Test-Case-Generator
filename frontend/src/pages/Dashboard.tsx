@@ -126,6 +126,7 @@ export default function Dashboard() {
     const navigate = useNavigate();
     const [isJiraConnected, setIsJiraConnected] = useState(false);
     const [jiraSiteName, setJiraSiteName] = useState<string | null>(null);
+    const [hasApiKey, setHasApiKey] = useState(true); // Assume true until we check
 
     useEffect(() => {
         const checkJiraStatus = async () => {
@@ -137,7 +138,24 @@ export default function Dashboard() {
                 console.error('Failed to check Jira status:', err);
             }
         };
+
+        const checkApiKeyStatus = async () => {
+            try {
+                const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+                const response = await fetch(`${API_BASE}/api/v1/ai/providers`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                });
+                const data = await response.json();
+                const config = data.user_configuration || {};
+                const anyConfigured = Object.values(config).some(v => v === true);
+                setHasApiKey(anyConfigured);
+            } catch (err) {
+                console.error('Failed to check API key status:', err);
+            }
+        };
+
         checkJiraStatus();
+        checkApiKeyStatus();
     }, []);
 
     const handleConnectJira = async () => {
@@ -293,6 +311,44 @@ export default function Dashboard() {
                         }}
                     >
                         Change Password
+                    </button>
+                </div>
+            )}
+
+            {/* API Key Warning */}
+            {!hasApiKey && (
+                <div style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    backgroundColor: '#FEE2E2',
+                    border: '1px solid #FCA5A5',
+                    marginBottom: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2">
+                            <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span style={{ color: '#991B1B', fontWeight: 500 }}>
+                            No AI API key configured. AI test case generation will not work.
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => navigate('/ai-settings')}
+                        style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #DC2626',
+                            backgroundColor: 'transparent',
+                            color: '#991B1B',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Configure API Key
                     </button>
                 </div>
             )}

@@ -84,6 +84,15 @@ class Settings(BaseSettings):
     
     # File Upload
     MAX_UPLOAD_SIZE_MB: int = 10
+    KNOWLEDGE_BASE_BUCKET: str = os.getenv("KNOWLEDGE_BASE_BUCKET", "")
+    KNOWLEDGE_BASE_LOCAL_DIR: str = os.getenv("KNOWLEDGE_BASE_LOCAL_DIR", "data/knowledge")
+    KNOWLEDGE_BASE_SIGNED_URL_TTL: int = int(os.getenv("KNOWLEDGE_BASE_SIGNED_URL_TTL", "900"))
+    KNOWLEDGE_MAX_FILE_SIZE_MB: int = int(os.getenv("KNOWLEDGE_MAX_FILE_SIZE_MB", "25"))
+    KNOWLEDGE_ALLOWED_EXTENSIONS: str = os.getenv("KNOWLEDGE_ALLOWED_EXTENSIONS", "csv,xlsx")
+    KNOWLEDGE_EMBEDDING_PROVIDER: str = os.getenv("KNOWLEDGE_EMBEDDING_PROVIDER", "openai")
+    KNOWLEDGE_EMBEDDING_MODEL: str = os.getenv(
+        "KNOWLEDGE_EMBEDDING_MODEL", "text-embedding-ada-002"
+    )
     
     class Config:
         env_file = ".env"
