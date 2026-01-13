@@ -23,6 +23,7 @@ export default function ProjectDetail() {
     const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState<TabType>('features');
     const [isJiraConnected, setIsJiraConnected] = useState(false);
+    const [jiraSiteName, setJiraSiteName] = useState<string | null>(null);
     const [importKey, setImportKey] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
 
@@ -44,6 +45,7 @@ export default function ProjectDetail() {
                 try {
                     const status = await apiClient.getJiraStatus();
                     setIsJiraConnected(status.is_connected);
+                    setJiraSiteName(status.site_name);
                 } catch (e) {
                     console.error('Failed to check Jira status', e);
                 }
@@ -70,6 +72,15 @@ export default function ProjectDetail() {
             alert(err instanceof Error ? err.message : 'Failed to import issue');
         } finally {
             setActionLoading(false);
+        }
+    };
+
+    const handleConnectJira = async () => {
+        try {
+            const { url } = await apiClient.getJiraConnectUrl();
+            window.location.href = url;
+        } catch (err) {
+            alert('Failed to initiate Jira connection');
         }
     };
 
@@ -156,6 +167,70 @@ export default function ProjectDetail() {
             {/* Epics & User Stories Tab */}
             {activeTab === 'features' && (
                 <div>
+                    {/* Jira Connection Status Banner */}
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '16px',
+                        padding: '12px 16px',
+                        background: isJiraConnected ? '#E3FCEF' : '#FFFAE6',
+                        borderRadius: '8px',
+                        border: `1px solid ${isJiraConnected ? '#36B37E' : '#FFE380'}`
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                                width: '10px',
+                                height: '10px',
+                                borderRadius: '50%',
+                                background: isJiraConnected ? '#36B37E' : '#FF991F'
+                            }} />
+                            <div>
+                                <span style={{ fontWeight: 500, color: isJiraConnected ? '#006644' : '#172B4D' }}>
+                                    {isJiraConnected ? 'Jira Connected' : 'Jira Not Connected'}
+                                </span>
+                                {jiraSiteName && (
+                                    <span style={{ marginLeft: '8px', color: '#006644', fontSize: '14px' }}>
+                                        — {jiraSiteName}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        {!isJiraConnected && (
+                            <button
+                                onClick={handleConnectJira}
+                                style={{
+                                    padding: '8px 16px',
+                                    background: '#0052CC',
+                                    color: 'white',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    fontWeight: 500
+                                }}
+                            >
+                                🔗 Connect Jira
+                            </button>
+                        )}
+                        {isJiraConnected && (
+                            <button
+                                onClick={handleConnectJira}
+                                style={{
+                                    padding: '6px 12px',
+                                    background: 'transparent',
+                                    color: '#0052CC',
+                                    borderRadius: '4px',
+                                    border: '1px solid #0052CC',
+                                    cursor: 'pointer',
+                                    fontSize: '12px'
+                                }}
+                            >
+                                Reconnect
+                            </button>
+                        )}
+                    </div>
+
                     <div style={{ marginBottom: '16px' }}>
                         <h2 style={{ fontSize: '18px', fontWeight: 600 }}>Epics & User Stories</h2>
                     </div>

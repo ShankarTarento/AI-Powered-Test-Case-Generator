@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiClient, UserStory, TestCase } from '../services/api';
+import { apiClient, UserStory, TestCase, BulkGenerateResult } from '../services/api';
 import { colors } from '../theme';
 
 export default function StoryDetail() {
@@ -13,6 +13,8 @@ export default function StoryDetail() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [generating, setGenerating] = useState(false);
+    const [bulkGenerating, setBulkGenerating] = useState(false);
+    const [bulkResult, setBulkResult] = useState<BulkGenerateResult | null>(null);
 
     useEffect(() => {
         if (id) {
@@ -55,6 +57,21 @@ export default function StoryDetail() {
             alert(err instanceof Error ? err.message : 'Failed to generate test cases');
         } finally {
             setGenerating(false);
+        }
+    };
+
+    const handleBulkGenerateTestCases = async () => {
+        if (!confirm(`Generate test cases for all ${children.length} child stories?`)) return;
+        setBulkGenerating(true);
+        setBulkResult(null);
+        try {
+            const result = await apiClient.bulkGenerateTestCases(id!);
+            setBulkResult(result);
+            alert(`Generated ${result.test_cases_generated} test cases for ${result.stories_processed} stories!`);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to bulk generate test cases');
+        } finally {
+            setBulkGenerating(false);
         }
     };
 
@@ -216,9 +233,60 @@ export default function StoryDetail() {
             {/* Child Stories (if Epic) */}
             {isEpic && (
                 <div style={{ marginTop: '24px' }}>
-                    <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>
-                        Linked User Stories ({children.length})
-                    </h2>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>
+                            Linked User Stories ({children.length})
+                        </h2>
+                        {children.length > 0 && (
+                            <button
+                                onClick={handleBulkGenerateTestCases}
+                                disabled={bulkGenerating}
+                                style={{
+                                    padding: '10px 20px',
+                                    background: `linear-gradient(135deg, #6554C0 0%, #5243AA 100%)`,
+                                    color: 'white',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    fontWeight: 500,
+                                    opacity: bulkGenerating ? 0.7 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}
+                            >
+                                {bulkGenerating ? (
+                                    <>⏳ Generating...</>
+                                ) : (
+                                    <>⚡ Bulk Generate Test Cases</>
+                                )}
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Bulk Generate Results */}
+                    {bulkResult && (
+                        <div style={{
+                            padding: '16px',
+                            background: '#E3FCEF',
+                            borderRadius: '8px',
+                            border: '1px solid #36B37E',
+                            marginBottom: '16px'
+                        }}>
+                            <div style={{ fontWeight: 600, marginBottom: '8px', color: '#006644' }}>
+                                ✅ Bulk Generation Complete
+                            </div>
+                            <div style={{ fontSize: '14px', color: '#006644' }}>
+                                Generated {bulkResult.test_cases_generated} test cases for {bulkResult.stories_processed} of {bulkResult.total_stories} stories
+                            </div>
+                            {bulkResult.stories.filter(s => s.status === 'skipped').length > 0 && (
+                                <div style={{ fontSize: '12px', color: '#856404', marginTop: '8px' }}>
+                                    {bulkResult.stories.filter(s => s.status === 'skipped').length} stories skipped (already have test cases)
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {children.length === 0 ? (
                         <div style={{

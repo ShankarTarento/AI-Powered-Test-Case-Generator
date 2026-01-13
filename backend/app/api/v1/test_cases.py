@@ -165,3 +165,105 @@ async def generate_ai_test_cases(
         await db.refresh(case)
         
     return created_cases
+
+@router.post("/epics/{epic_id}/bulk-generate-test-cases")
+async def bulk_generate_test_cases_for_epic(
+    epic_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user)
+):
+    """Generate test cases for all child stories of an Epic"""
+    # Verify the epic exists
+    result = await db.execute(select(Feature).where(Feature.id == epic_id))
+    epic = result.scalar_one_or_none()
+    
+    if not epic:
+        raise HTTPException(status_code=404, detail="Epic not found")
+        
+    await deps.verify_project_access(epic.project_id, current_user, db)
+    
+    # Get all child stories of this epic
+    result = await db.execute(
+        select(Feature).where(Feature.epic_id == epic_id)
+    )
+    child_stories = result.scalars().all()
+    
+    if not child_stories:
+        raise HTTPException(status_code=400, detail="No child stories found for this Epic")
+    
+    results = {
+        "total_stories": len(child_stories),
+        "stories_processed": 0,
+        "test_cases_generated": 0,
+        "stories": []
+    }
+    
+    for story in child_stories:
+        # Check if story already has test cases
+        existing_result = await db.execute(
+            select(TestCase).where(TestCase.feature_id == story.id)
+        )
+        existing_cases = existing_result.scalars().all()
+        
+        if existing_cases:
+            results["stories"].append({
+                "id": str(story.id),
+                "jira_key": story.jira_key,
+                "name": story.name,
+                "status": "skipped",
+                "reason": f"Already has {len(existing_cases)} test cases"
+            })
+            continue
+        
+        # Generate test cases for this story (Mock implementation)
+        generated_test_cases = [
+            {
+                "title": f"Verify {story.name} - Happy Path",
+                "description": f"Test the core functionality: {story.description[:200] if story.description else 'No description'}",
+                "steps": [
+                    {"step_number": 1, "action": "Navigate to the feature", "expected_result": "Feature page loads successfully"},
+                    {"step_number": 2, "action": "Perform the main action", "expected_result": "Action completes successfully"},
+                    {"step_number": 3, "action": "Verify the result", "expected_result": "Expected outcome is achieved"}
+                ],
+                "expected_result": "Feature works as expected per requirements",
+                "priority": "high",
+                "test_type": "functional",
+                "status": "draft"
+            },
+            {
+                "title": f"Verify {story.name} - Validation",
+                "description": "Test input validation and error handling",
+                "steps": [
+                    {"step_number": 1, "action": "Enter invalid or empty data", "expected_result": "Validation error is shown"},
+                    {"step_number": 2, "action": "Try to proceed without required fields", "expected_result": "System prevents action"}
+                ],
+                "expected_result": "System handles invalid input gracefully",
+                "priority": "medium",
+                "test_type": "edge_case",
+                "status": "draft"
+            }
+        ]
+        
+        cases_created = 0
+        for case_data in generated_test_cases:
+            test_case = TestCase(
+                **case_data,
+                feature_id=story.id,
+                created_by=current_user.id
+            )
+            db.add(test_case)
+            cases_created += 1
+        
+        results["stories_processed"] += 1
+        results["test_cases_generated"] += cases_created
+        results["stories"].append({
+            "id": str(story.id),
+            "jira_key": story.jira_key,
+            "name": story.name,
+            "status": "generated",
+            "test_cases_created": cases_created
+        })
+    
+    await db.commit()
+    
+    return results

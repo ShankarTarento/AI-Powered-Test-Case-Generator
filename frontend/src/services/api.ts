@@ -325,6 +325,29 @@ class ApiClient {
         });
         return this.handleResponse<TestCase[]>(response);
     }
+
+    async bulkGenerateTestCases(epicId: string): Promise<BulkGenerateResult> {
+        const response = await fetch(`${this.baseUrl}/api/v1/epics/${epicId}/bulk-generate-test-cases`, {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+        });
+        return this.handleResponse<BulkGenerateResult>(response);
+    }
+}
+
+
+export interface BulkGenerateResult {
+    total_stories: number;
+    stories_processed: number;
+    test_cases_generated: number;
+    stories: Array<{
+        id: string;
+        jira_key: string;
+        name: string;
+        status: 'generated' | 'skipped';
+        test_cases_created?: number;
+        reason?: string;
+    }>;
 }
 
 

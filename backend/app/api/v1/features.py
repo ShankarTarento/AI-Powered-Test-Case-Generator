@@ -17,10 +17,15 @@ async def get_project_features(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user)
 ):
-    """List all features for a project"""
+    """List all top-level features for a project (Epics and standalone stories, not child stories)"""
     await deps.verify_project_access(project_id, current_user, db)
     
-    query = select(Feature).where(Feature.project_id == project_id)
+    # Only return top-level items (epic_id is NULL)
+    # Child stories linked to an Epic are shown inside the Epic detail page
+    query = select(Feature).where(
+        Feature.project_id == project_id,
+        Feature.epic_id == None  # Only top-level items
+    )
         
     result = await db.execute(query.order_by(desc(Feature.created_at)))
     features = result.scalars().all()
